@@ -1,0 +1,32 @@
+# Build stage
+FROM node:lts-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files for better caching
+COPY OstadUI/package*.json ./
+
+# Install all dependencies
+RUN npm install
+
+# Copy frontend source code
+COPY OstadUI/ .
+
+# Development stage - optimize for development
+FROM node:lts-alpine AS dev
+
+# Use non-root user for better security
+USER node
+
+# Set working directory where the non-root user has access
+WORKDIR /home/node/app
+
+# Copy built application
+COPY --from=builder --chown=node:node /app ./
+
+# Expose port 5173
+EXPOSE 5173
+
+# Command to run frontend dev server
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

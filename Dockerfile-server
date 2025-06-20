@@ -1,0 +1,38 @@
+# Build stage
+FROM node:lts-alpine AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files
+COPY OstadServer/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY OstadServer/ .
+
+# Production stage - using a smaller base image
+FROM node:lts-alpine AS production
+
+# Use non-root user for better security
+USER node
+
+# Set working directory where the non-root user has access
+WORKDIR /home/node/app
+
+# Copy package files
+COPY --from=builder --chown=node:node /app/package*.json ./
+
+# Install only production dependencies
+RUN npm install --only=production
+
+# Copy application code
+COPY --from=builder --chown=node:node /app/server.js ./
+
+# Expose port 5050
+EXPOSE 5050
+
+# Command to run the server
+CMD ["node", "server.js"]
