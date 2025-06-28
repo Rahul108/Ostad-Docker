@@ -4,7 +4,7 @@ This directory contains Kubernetes manifests to deploy the Ostad full-stack appl
 
 ## Prerequisites
 
-- Kubernetes cluster (minikube, Docker Desktop, or cloud provider)
+- Kubernetes 5. **DNS not resolving**: Check `/etc/hosts` entries for ostad.local and mongo.localluster (minikube, Docker Desktop, or cloud provider)
 - kubectl configured to connect to your cluster
 - NGINX Ingress Controller installed in your cluster
 
@@ -23,7 +23,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 ## Architecture
 
 The application consists of:
-- **Frontend (ostad-ui)**: React app served by Vite dev server
+- **Frontend (ostad-ui)**: React app built for production and served by nginx
 - **Backend (ostad-server)**: Node.js/Express API with MongoDB integration
 - **MongoDB**: Database with persistent storage
 - **Mongo Express**: Web-based MongoDB administration interface
@@ -50,8 +50,9 @@ This script will:
 
 1. **Build Docker images:**
    ```bash
+   eval $(minikube docker-env)
    docker build -t ostad-server:latest -f Dockerfile-server .
-   docker build -t ostad-ui:latest -f Dockerfile-UI .
+   docker build -t ostad-ui-prod:latest -f Dockerfile-UI-prod .
    ```
 
 2. **Apply manifests in order:**
@@ -67,13 +68,13 @@ This script will:
 
 3. **Add local DNS entries:**
    ```bash
-   echo '127.0.0.1 chat.local mongo.local' | sudo tee -a /etc/hosts
+   echo '192.168.49.2 ostad.local mongo.local' | sudo tee -a /etc/hosts
    ```
 
 ## Access the Application
 
-- **Frontend**: http://chat.local
-- **Backend API**: http://chat.local/api
+- **Frontend**: http://ostad.local
+- **Backend API**: http://ostad.local/api
 - **Mongo Express**: http://mongo.local (username: admin, password: password)
 
 ## Monitoring and Debugging

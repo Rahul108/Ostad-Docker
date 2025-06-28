@@ -9,7 +9,7 @@ function App() {
 
   useEffect(() => {
     // Fetch server status
-    fetch('http://localhost:5050')
+    fetch('/api')
       .then(response => response.json())
       .then(data => setMessage(data.message))
       .catch(error => setMessage('Error connecting to server'))
@@ -19,7 +19,7 @@ function App() {
   }, [])
 
   const fetchItems = () => {
-    fetch('http://localhost:5050/api/items')
+    fetch('/api/items')
       .then(response => response.json())
       .then(data => setItems(data))
       .catch(error => console.error('Error fetching items:', error))
@@ -34,7 +34,7 @@ function App() {
     e.preventDefault()
     setLoading(true)
     
-    fetch('http://localhost:5050/api/items', {
+    fetch('/api/items', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

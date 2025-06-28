@@ -5,8 +5,9 @@ echo "🚀 Deploying Ostad Application to Kubernetes..."
 
 # Build Docker images locally
 echo "📦 Building Docker images..."
+eval $(minikube docker-env)
 docker build -t ostad-server:latest -f Dockerfile-server .
-docker build -t ostad-ui:latest -f Dockerfile-UI .
+docker build -t ostad-ui-prod:latest -f Dockerfile-UI-prod .
 
 # Apply Kubernetes manifests
 echo "🔧 Applying Kubernetes manifests..."
@@ -46,8 +47,8 @@ kubectl get ingress -n aninda-sarker-rahul-ns
 
 echo ""
 echo "🌐 Access URLs:"
-echo "Frontend: http://chat.local (add to /etc/hosts)"
+echo "Frontend: http://ostad.local (add to /etc/hosts)"
 echo "Mongo Express: http://mongo.local (add to /etc/hosts)"
 echo ""
 echo "To add to /etc/hosts, run:"
-echo "echo '127.0.0.1 chat.local mongo.local' | sudo tee -a /etc/hosts"
+echo "echo '192.168.49.2 ostad.local mongo.local' | sudo tee -a /etc/hosts"
