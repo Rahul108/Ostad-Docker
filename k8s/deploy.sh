@@ -18,14 +18,14 @@ kubectl apply -f k8s/mongo-deployment.yaml
 
 # Wait for MongoDB to be ready
 echo "⏳ Waiting for MongoDB to be ready..."
-kubectl wait --for=condition=ready pod -l app=mongo -n pyro-ns --timeout=300s
+kubectl wait --for=condition=ready pod -l app=mongo -n aninda-sarker-rahul-ns --timeout=300s
 
 # Deploy other services
 kubectl apply -f k8s/server-deployment.yaml
 
 # Wait for server to be ready
 echo "⏳ Waiting for server to be ready..."
-kubectl wait --for=condition=ready pod -l app=ostad-server -n pyro-ns --timeout=300s
+kubectl wait --for=condition=ready pod -l app=ostad-server -n aninda-sarker-rahul-ns --timeout=300s
 
 kubectl apply -f k8s/ui-deployment.yaml
 kubectl apply -f k8s/mongo-express-deployment.yaml
@@ -33,16 +33,16 @@ kubectl apply -f k8s/ingress.yaml
 
 # Wait for all pods to be ready
 echo "⏳ Waiting for all pods to be ready..."
-kubectl wait --for=condition=ready pod --all -n pyro-ns --timeout=300s
+kubectl wait --for=condition=ready pod --all -n aninda-sarker-rahul-ns --timeout=300s
 
 echo "✅ Deployment completed!"
 echo ""
 echo "📊 Checking deployment status..."
-kubectl get pods -n pyro-ns
+kubectl get pods -n aninda-sarker-rahul-ns
 echo ""
-kubectl get services -n pyro-ns
+kubectl get services -n aninda-sarker-rahul-ns
 echo ""
-kubectl get ingress -n pyro-ns
+kubectl get ingress -n aninda-sarker-rahul-ns
 
 echo ""
 echo "🌐 Access URLs:"

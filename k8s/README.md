@@ -28,7 +28,7 @@ The application consists of:
 - **MongoDB**: Database with persistent storage
 - **Mongo Express**: Web-based MongoDB administration interface
 
-All resources are deployed in the `pyro-ns` namespace.
+All resources are deployed in the `aninda-sarker-rahul-ns` namespace.
 
 ## Deployment
 
@@ -80,31 +80,31 @@ This script will:
 
 Check pod status:
 ```bash
-kubectl get pods -n pyro-ns
+kubectl get pods -n aninda-sarker-rahul-ns
 ```
 
 Check services:
 ```bash
-kubectl get services -n pyro-ns
+kubectl get services -n aninda-sarker-rahul-ns
 ```
 
 Check ingress:
 ```bash
-kubectl get ingress -n pyro-ns
+kubectl get ingress -n aninda-sarker-rahul-ns
 ```
 
 View pod logs:
 ```bash
-kubectl logs -f deployment/ostad-server -n pyro-ns
-kubectl logs -f deployment/ostad-ui -n pyro-ns
-kubectl logs -f deployment/mongo -n pyro-ns
-kubectl logs -f deployment/mongo-express -n pyro-ns
+kubectl logs -f deployment/ostad-server -n aninda-sarker-rahul-ns
+kubectl logs -f deployment/ostad-ui -n aninda-sarker-rahul-ns
+kubectl logs -f deployment/mongo -n aninda-sarker-rahul-ns
+kubectl logs -f deployment/mongo-express -n aninda-sarker-rahul-ns
 ```
 
 Describe resources for troubleshooting:
 ```bash
-kubectl describe pod <pod-name> -n pyro-ns
-kubectl describe service <service-name> -n pyro-ns
+kubectl describe pod <pod-name> -n aninda-sarker-rahul-ns
+kubectl describe service <service-name> -n aninda-sarker-rahul-ns
 ```
 
 ## Cleanup
@@ -117,7 +117,7 @@ To remove all deployed resources:
 
 Or manually:
 ```bash
-kubectl delete namespace pyro-ns
+kubectl delete namespace aninda-sarker-rahul-ns
 ```
 
 ## File Structure
