@@ -4,7 +4,18 @@ This directory contains Kubernetes manifests to deploy the Ostad full-stack appl
 
 ## Prerequisites
 
-- Kubernetes 5. **DNS not resolving**: Check `/etc/hosts` entries for ostad.local and mongo.localluster (minikube, Docker Desktop, or cloud provider)
+- Kubernetes 5. **DNS not res## Troubleshooting
+
+1. **Pods not starting**: Check resource limits and node capacity
+2. **Image not found**: Ensure Docker images are built locally or available in registry
+3. **Ingress not working**: Verify NGINX Ingress Controller is installed and running
+4. **DNS not resolving**: Check `/etc/hosts` entries for ostad.local and mongo.local
+5. **Database connection issues**: Verify MongoDB is ready before other services start
+6. **WSL-Windows access issues**: 
+   - Use port forwarding: `./k8s/wsl-windows-access.sh`
+   - Check Windows firewall settings
+   - Ensure WSL2 is being used for better networking
+7. **Port forwarding stops working**: Restart the wsl-windows-access.sh script*: Check `/etc/hosts` entries for ostad.local and mongo.localluster (minikube, Docker Desktop, or cloud provider)
 - kubectl configured to connect to your cluster
 - NGINX Ingress Controller installed in your cluster
 
@@ -73,6 +84,27 @@ This script will:
 
 ## Access the Application
 
+### For WSL Users (Windows Browser Access)
+
+If you're running minikube in WSL and want to access from Windows browser:
+
+#### Option 1: Port Forwarding (Recommended)
+```bash
+./k8s/wsl-windows-access.sh
+```
+Then access from Windows browser:
+- **Frontend**: http://localhost:8080 or http://[WSL-IP]:8080
+- **Mongo Express**: http://localhost:8081 or http://[WSL-IP]:8081
+- **Backend API**: http://localhost:5050 or http://[WSL-IP]:5050
+
+#### Option 2: Minikube Tunnel
+```bash
+./k8s/minikube-tunnel.sh
+```
+Follow the script instructions to add entries to Windows hosts file.
+
+### For Linux/Direct Access
+
 - **Frontend**: http://ostad.local
 - **Backend API**: http://ostad.local/api
 - **Mongo Express**: http://mongo.local (username: admin, password: password)
@@ -134,6 +166,8 @@ k8s/
 ├── ingress.yaml               # Ingress configuration
 ├── deploy.sh                  # Deployment script
 ├── cleanup.sh                 # Cleanup script
+├── wsl-windows-access.sh      # WSL-Windows port forwarding setup
+├── minikube-tunnel.sh         # Alternative tunnel-based access
 └── README.md                  # This file
 ```
 
