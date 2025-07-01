@@ -22,3 +22,4 @@ mongo-data/
 .Trashes
 ehthumbs.db
 Thumbs.db
+k8s/secret.yaml

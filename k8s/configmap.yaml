@@ -11,18 +11,3 @@ data:
   SERVER_PORT: "5050"
   ME_CONFIG_MONGODB_SERVER: "mongo"
   ME_CONFIG_BASICAUTH_ENABLED: "true"
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: ostad-secrets
-  namespace: aninda-sarker-rahul-ns
-type: Opaque
-data:
-  # Base64 encoded values
-  # admin = YWRtaW4=
-  # password = cGFzc3dvcmQ=
-  MONGO_ROOT_USERNAME: YWRtaW4=
-  MONGO_ROOT_PASSWORD: cGFzc3dvcmQ=
-  ME_CONFIG_BASICAUTH_USERNAME: YWRtaW4=
-  ME_CONFIG_BASICAUTH_PASSWORD: cGFzc3dvcmQ=
