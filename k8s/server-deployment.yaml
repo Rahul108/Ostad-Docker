@@ -24,10 +24,50 @@ spec:
         ports:
         - containerPort: 5050
         env:
+        - name: MONGO_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: ostad-config
+              key: MONGO_HOST
+        - name: MONGO_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: ostad-config
+              key: MONGO_PORT
+        - name: MONGO_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: ostad-config
+              key: MONGO_DATABASE
+        - name: MONGO_AUTH_SOURCE
+          valueFrom:
+            configMapKeyRef:
+              name: ostad-config
+              key: MONGO_AUTH_SOURCE
+        - name: MONGO_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: ostad-secrets
+              key: MONGO_ROOT_USERNAME
+        - name: MONGO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: ostad-secrets
+              key: MONGO_ROOT_PASSWORD
         - name: MONGO_URI
-          value: "mongodb://admin:password@mongo:27017/ostaddb?authSource=admin"
+          value: "mongodb://$(MONGO_USERNAME):$(MONGO_PASSWORD)@$(MONGO_HOST):$(MONGO_PORT)/$(MONGO_DATABASE)?authSource=$(MONGO_AUTH_SOURCE)"
         - name: PORT
-          value: "5050"
+          valueFrom:
+            configMapKeyRef:
+              name: ostad-config
+              key: SERVER_PORT
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
         livenessProbe:
           httpGet:
             path: /

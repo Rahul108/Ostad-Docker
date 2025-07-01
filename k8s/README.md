@@ -9,13 +9,13 @@ This directory contains Kubernetes manifests to deploy the Ostad full-stack appl
 1. **Pods not starting**: Check resource limits and node capacity
 2. **Image not found**: Ensure Docker images are built locally or available in registry
 3. **Ingress not working**: Verify NGINX Ingress Controller is installed and running
-4. **DNS not resolving**: Check `/etc/hosts` entries for ostad.local and mongo.local
+4. **DNS not resolving**: Check `/etc/hosts` entries for chat.local and mongo.local
 5. **Database connection issues**: Verify MongoDB is ready before other services start
 6. **WSL-Windows access issues**: 
    - Use port forwarding: `./k8s/wsl-windows-access.sh`
    - Check Windows firewall settings
    - Ensure WSL2 is being used for better networking
-7. **Port forwarding stops working**: Restart the wsl-windows-access.sh script*: Check `/etc/hosts` entries for ostad.local and mongo.localluster (minikube, Docker Desktop, or cloud provider)
+7. **Port forwarding stops working**: Restart the wsl-windows-access.sh script*: Check `/etc/hosts` entries for chat.local and mongo.localluster (minikube, Docker Desktop, or cloud provider)
 - kubectl configured to connect to your cluster
 - NGINX Ingress Controller installed in your cluster
 
@@ -79,7 +79,7 @@ This script will:
 
 3. **Add local DNS entries:**
    ```bash
-   echo '192.168.49.2 ostad.local mongo.local' | sudo tee -a /etc/hosts
+   echo '192.168.49.2 chat.local mongo.local' | sudo tee -a /etc/hosts
    ```
 
 ## Access the Application
@@ -105,8 +105,8 @@ Follow the script instructions to add entries to Windows hosts file.
 
 ### For Linux/Direct Access
 
-- **Frontend**: http://ostad.local
-- **Backend API**: http://ostad.local/api
+- **Frontend**: http://chat.local
+- **Backend API**: http://chat.local/api
 - **Mongo Express**: http://mongo.local (username: admin, password: password)
 
 ## Monitoring and Debugging
@@ -157,18 +157,18 @@ kubectl delete namespace aninda-sarker-rahul-ns
 
 ```
 k8s/
-├── namespace.yaml              # Namespace definition
-├── configmap.yaml             # Configuration and secrets
-├── mongo-deployment.yaml      # MongoDB deployment, PVC, and service
-├── server-deployment.yaml     # Backend API deployment and service
-├── ui-deployment.yaml         # Frontend deployment and service
-├── mongo-express-deployment.yaml # Mongo Express deployment and service
-├── ingress.yaml               # Ingress configuration
-├── deploy.sh                  # Deployment script
-├── cleanup.sh                 # Cleanup script
-├── wsl-windows-access.sh      # WSL-Windows port forwarding setup
-├── minikube-tunnel.sh         # Alternative tunnel-based access
-└── README.md                  # This file
+├── namespace.yaml              # Creates the 'aninda-sarker-rahul-ns' namespace for resource isolation
+├── configmap.yaml             # Stores non-sensitive configuration values (database names, ports, hosts)
+├── mongo-deployment.yaml      # MongoDB database deployment with persistent volume, resource limits, and service
+├── server-deployment.yaml     # Node.js/Express backend API deployment with ConfigMap/Secret refs, resource limits, and service
+├── ui-deployment.yaml         # React frontend deployment served by nginx with resource limits and service configuration
+├── mongo-express-deployment.yaml # MongoDB web admin interface deployment with ConfigMap/Secret refs, resource limits, and service
+├── ingress.yaml               # NGINX ingress rules for routing external traffic to services (chat.local, mongo.local)
+├── deploy.sh                  # Automated deployment script that builds images and applies all manifests
+├── cleanup.sh                 # Cleanup script to remove all deployed resources and namespace
+├── wsl-windows-access.sh      # Port forwarding setup for accessing services from Windows browser in WSL
+├── minikube-tunnel.sh         # Alternative tunnel-based access method for minikube
+└── README.md                  # This documentation file
 ```
 
 ## Notes
@@ -178,6 +178,9 @@ k8s/
 - Persistent storage is configured for MongoDB using PVC
 - Health checks are configured for all services
 - Basic authentication is enabled for Mongo Express
+- Resource requests and limits are configured for all deployments to ensure proper resource allocation
+- Environment variables are managed through ConfigMaps (non-sensitive) and Secrets (sensitive data)
+- MongoDB data is persisted using a 1GB Persistent Volume Claim
 
 ## Troubleshooting
 

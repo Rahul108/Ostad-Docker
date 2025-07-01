@@ -4,10 +4,13 @@ metadata:
   name: ostad-config
   namespace: aninda-sarker-rahul-ns
 data:
-  MONGO_ROOT_USERNAME: "admin"
-  MONGO_ROOT_PASSWORD: "password"
   MONGO_DATABASE: "ostaddb"
-  MONGO_URI: "mongodb://admin:password@mongo:27017/ostaddb?authSource=admin"
+  MONGO_HOST: "mongo"
+  MONGO_PORT: "27017"
+  MONGO_AUTH_SOURCE: "admin"
+  SERVER_PORT: "5050"
+  ME_CONFIG_MONGODB_SERVER: "mongo"
+  ME_CONFIG_BASICAUTH_ENABLED: "true"
 ---
 apiVersion: v1
 kind: Secret
@@ -21,3 +24,5 @@ data:
   # password = cGFzc3dvcmQ=
   MONGO_ROOT_USERNAME: YWRtaW4=
   MONGO_ROOT_PASSWORD: cGFzc3dvcmQ=
+  ME_CONFIG_BASICAUTH_USERNAME: YWRtaW4=
+  ME_CONFIG_BASICAUTH_PASSWORD: cGFzc3dvcmQ=
