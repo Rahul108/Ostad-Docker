@@ -172,19 +172,6 @@ kubectl describe pod <pod-name> -n aninda-sarker-rahul-ns
 kubectl describe service <service-name> -n aninda-sarker-rahul-ns
 ```
 
-## Cleanup
-
-To remove all deployed resources:
-
-```bash
-./k8s/cleanup.sh
-```
-
-Or manually:
-```bash
-kubectl delete namespace aninda-sarker-rahul-ns
-```
-
 ## Troubleshooting
 
 1. **Pods not starting**: Check resource limits and node capacity
