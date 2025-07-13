@@ -1,130 +1,77 @@
 # Ostad Helm Deployment
 
-This repository contains Helm charts for deploying the Ostad application stack on Kubernetes.
+Deploy the Ostad application stack (MongoDB, Express API, React UI) on Kubernetes using Helm.
 
 ## Prerequisites
 
 - Docker
-- Kubernetes cluster (minikube, kind, or any other)
+- Minikube or Kubernetes cluster
 - kubectl configured
 
 ## Quick Start
 
-### 1. Install Helm 3
+### 1. Deploy Everything
 
 ```bash
 cd helm-charts
-./install-helm.sh
-```
-
-### 2. Deploy the application
-
-```bash
 ./deploy.sh
 ```
 
-This will:
-- Build Docker images for ostad-server and ostad-ui
-- Install all Helm charts in the correct order
-- Wait for services to be ready
-- Display access URLs
+This script will:
+- Build Docker images
+- Install all Helm charts
+- Show you access URLs
 
-### 3. Access the application
+### 2. Access Your Application
 
-- **Frontend (Ostad UI)**: http://localhost:30173
-- **Mongo Express**: http://localhost:30081
-- **API endpoints**: http://localhost:30050
+**For WSL2 Users (Windows):**
 
-## Manual Installation
-
-If you prefer to install each component manually:
-
-### 1. Build Docker images
-
+*Option 1: Use the port-forward script (Easy):*
 ```bash
-docker build -f helm-charts/Dockerfile-server -t ostad-server:latest .
-docker build -f helm-charts/Dockerfile-ui -t ostad-ui:latest .
+./port-forward.sh
 ```
 
-### 2. Install Helm charts
-
+*Option 2: Manual port forwarding:*
 ```bash
-cd helm-charts
-
-# Install MongoDB first
-helm install mongo ./mongo
-
-# Install Mongo Express
-helm install mongo-express ./mongo-express
-
-# Install Ostad Server
-helm install ostad-server ./ostad-server
-
-# Install Ostad UI
-helm install ostad-ui ./ostad-ui
+# Run in separate terminals
+kubectl port-forward service/ostad-ui 5173:5173
+kubectl port-forward service/mongo-express 8081:8081
+kubectl port-forward service/ostad-server 5050:5050
 ```
 
-### 3. Verify deployment
+Then access from Windows:
+- **Frontend**: http://localhost:5173
+- **Mongo Express**: http://localhost:8081 (admin:ostad123)
+- **API Server**: http://localhost:5050
 
-```bash
-kubectl get pods
-kubectl get svc
-```
+**For Direct Access (Linux/Mac):**
+- Get Minikube IP: `minikube ip`
+- Frontend: `http://<minikube-ip>:30173`
+- Mongo Express: `http://<minikube-ip>:30081` (admin:ostad123)
+- API Server: `http://<minikube-ip>:30050`
 
-## Chart Structure
+## What's Included
 
-- `mongo/` - MongoDB database
-- `mongo-express/` - MongoDB web interface
-- `ostad-server/` - Express.js backend API
-- `ostad-ui/` - React frontend application
-
-## Configuration
-
-Each chart has a `values.yaml` file with configurable options:
-
-### MongoDB Configuration
-- Username/Password: `ostad/ostad`
-- Database: Uses default MongoDB port 27017
-
-### Mongo Express Configuration
-- Port: 8081 (NodePort: 30081)
-- Connects to MongoDB using credentials
-
-### Ostad Server Configuration
-- Port: 5050 (NodePort: 30050)
-- MongoDB connection string configured
-
-### Ostad UI Configuration
-- Port: 5173 (NodePort: 30173)
-- Static React build served via nginx
+- **MongoDB** - Database (port 27017)
+- **Mongo Express** - Database web UI (port 8081)
+- **Ostad Server** - Express.js API (port 5050)
+- **Ostad UI** - React frontend (port 5173)
 
 ## Cleanup
 
-To remove all installations:
-
 ```bash
-helm uninstall ostad-ui
-helm uninstall ostad-server
-helm uninstall mongo-express
-helm uninstall mongo
+helm uninstall ostad-ui ostad-server mongo-express mongo
 ```
 
 ## Troubleshooting
 
-### Check pod status
 ```bash
+# Check pod status
 kubectl get pods
+
+# Check logs
 kubectl logs <pod-name>
-```
 
-### Check services
-```bash
+# Check services
 kubectl get svc
-```
-
-### Port forwarding (alternative access)
-```bash
-kubectl port-forward svc/ostad-ui 3000:5173
-kubectl port-forward svc/ostad-server 5000:5050
-kubectl port-forward svc/mongo-express 8081:8081
 ```
