@@ -1,0 +1,35 @@
+replicaCount: 1
+
+image:
+  repository: ostad-server
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+service:
+  type: NodePort
+  port: 5050
+  nodePort: 30050
+
+env:
+  MONGO_URL: "mongodb://ostad:ostad@mongo:27017"
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+ingress:
+  enabled: false
+
+autoscaling:
+  enabled: false
+
+resources: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

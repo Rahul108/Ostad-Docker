@@ -1,0 +1,7 @@
+FROM node:18-alpine
+WORKDIR /app
+COPY OstadServer/package*.json ./
+RUN npm install
+COPY OstadServer/ ./
+EXPOSE 5050
+CMD ["node", "server.js"]
