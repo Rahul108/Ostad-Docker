@@ -2,6 +2,33 @@
 
 echo "🚀 Setting up Kubernetes and monitoring for t3.medium..."
 
+# Check if script is run as root
+if [ "$EUID" -eq 0 ]; then
+    echo "❌ Please do not run this script as root. Run as regular user with sudo privileges."
+    exit 1
+fi
+
+# Check for existing installations
+echo "🔍 Checking for existing installations..."
+if systemctl is-active --quiet kubelet; then
+    echo "⚠️ Kubernetes is already running. Please run cleanup-ec2.sh first."
+    exit 1
+fi
+
+if systemctl is-active --quiet docker; then
+    echo "⚠️ Docker is already running. Attempting to stop and reconfigure..."
+    sudo systemctl stop docker
+    sudo systemctl disable docker
+fi
+
+# Clean up any existing Docker installation
+echo "🧹 Cleaning up existing Docker installation..."
+sudo apt-get remove -y docker.io docker-ce docker-ce-cli containerd.io docker-compose-plugin 2>/dev/null || true
+sudo rm -rf /var/lib/docker
+sudo rm -rf /etc/docker
+sudo rm -rf /var/lib/containerd
+sudo rm -rf /etc/containerd
+
 # System optimizations for t3.medium (4GB RAM)
 sudo sysctl vm.overcommit_memory=1
 sudo sysctl vm.panic_on_oom=0
@@ -11,18 +38,21 @@ echo 'vm.panic_on_oom=0' | sudo tee -a /etc/sysctl.conf
 echo 'vm.oom_kill_allocating_task=1' | sudo tee -a /etc/sysctl.conf
 
 sudo apt-get update -y
-sudo apt-get install -y docker.io apt-transport-https ca-certificates curl
-sudo systemctl start docker
-sudo systemctl enable docker
-sudo usermod -aG docker $USER
+sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+# Install Docker with better error handling
+echo "🐳 Installing Docker..."
+sudo apt-get install -y docker.io
 
-sudo apt-get update -y
-sudo apt-get install -y kubelet kubeadm kubectl
-sudo apt-mark hold kubelet kubeadm kubectl
+# Check if Docker installation was successful
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker installation failed. Trying alternative method..."
+    curl -fsSL https://get.docker.com -o get-docker.sh
+    sudo sh get-docker.sh
+    rm get-docker.sh
+fi
 
+# Configure Docker daemon before starting
 sudo mkdir -p /etc/docker
 cat <<EOF | sudo tee /etc/docker/daemon.json
 {
@@ -46,6 +76,34 @@ cat <<EOF | sudo tee /etc/docker/daemon.json
   "max-concurrent-uploads": 3
 }
 EOF
+
+# Start Docker with error handling
+sudo systemctl daemon-reload
+sudo systemctl enable docker
+sudo systemctl start docker
+
+# Verify Docker is running
+if ! sudo systemctl is-active --quiet docker; then
+    echo "❌ Docker failed to start. Checking logs..."
+    sudo journalctl -u docker --no-pager --lines=10
+    echo "🔄 Attempting to restart Docker..."
+    sudo systemctl restart docker
+    sleep 5
+    if ! sudo systemctl is-active --quiet docker; then
+        echo "❌ Docker startup failed. Exiting..."
+        exit 1
+    fi
+fi
+
+sudo usermod -aG docker $USER
+echo "✅ Docker installation completed successfully"
+
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+
+sudo apt-get update -y
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo apt-mark hold kubelet kubeadm kubectl
 
 sudo systemctl restart docker
 sudo systemctl restart kubelet
