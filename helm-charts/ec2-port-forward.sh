@@ -16,9 +16,12 @@ kubectl port-forward --address 0.0.0.0 service/ostad-ui 5173:5173 &
 
 # Port forward monitoring services (if available)
 if kubectl get namespace monitoring > /dev/null 2>&1; then
-    echo "Monitoring namespace detected, forwarding Grafana and Prometheus..."
+    echo "Monitoring namespace detected, forwarding Grafana..."
     kubectl port-forward --address 0.0.0.0 service/monitor-grafana 3000:80 -n monitoring &
-    kubectl port-forward --address 0.0.0.0 service/monitor-kube-prometheus-st-prometheus 9090:9090 -n monitoring &
+    # Only try to forward Prometheus if the service exists
+    if kubectl get service monitor-kube-prometheus-st-prometheus -n monitoring > /dev/null 2>&1; then
+        kubectl port-forward --address 0.0.0.0 service/monitor-kube-prometheus-st-prometheus 9090:9090 -n monitoring &
+    fi
 fi
 
 echo ""
@@ -38,8 +41,10 @@ echo "  - API Server: http://$EC2_IP:5050"
 
 # Show monitoring URLs if available
 if kubectl get namespace monitoring > /dev/null 2>&1; then
-    echo "  - Grafana: http://$EC2_IP:3000 (admin:prom-operator)"
-    echo "  - Prometheus: http://$EC2_IP:9090"
+    echo "  - Grafana: http://$EC2_IP:3000 (admin:admin123)"
+    if kubectl get service monitor-kube-prometheus-st-prometheus -n monitoring > /dev/null 2>&1; then
+        echo "  - Prometheus: http://$EC2_IP:9090"
+    fi
 fi
 
 # Show minikube direct access URLs
@@ -49,6 +54,9 @@ echo "Direct minikube access (from EC2 instance):"
 echo "  - Frontend (Ostad UI): http://$MINIKUBE_IP:30173"
 echo "  - Mongo Express: http://$MINIKUBE_IP:30081 (admin:ostad123)"
 echo "  - API Server: http://$MINIKUBE_IP:30050"
+if kubectl get namespace monitoring > /dev/null 2>&1; then
+    echo "  - Grafana: http://$MINIKUBE_IP:30300 (admin:admin123)"
+fi
 echo ""
 echo "📋 Security Group Requirements (already configured for all TCP):"
 echo "  - Port 5173 (Ostad UI)"

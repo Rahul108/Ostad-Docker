@@ -94,6 +94,7 @@ if kubectl get pods -n monitoring | grep -q "Running"; then
     echo ""
     echo "✅ Standalone Grafana deployed successfully!"
     echo "📊 Grafana: http://$EC2_IP:30300 (admin:$GRAFANA_PASSWORD)"
+    echo "📊 Or via port forwarding: http://$EC2_IP:3000 (when using ./ec2-port-forward.sh)"
     echo ""
     echo "⚠️  Standalone Grafana setup:"
     echo "  - Only Grafana (no monitoring stack overhead)"
