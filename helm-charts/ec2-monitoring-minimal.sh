@@ -25,9 +25,9 @@ echo "Creating namespace..."
 kubectl create namespace monitoring
 
 echo "Installing minimal monitoring stack..."
-# Ultra-minimal values for very constrained environments
+# Ultra-minimal values for very constrained environments - Grafana only
 cat > /tmp/minimal-monitoring.yaml << 'EOF'
-# Disable all heavy components
+# Disable all heavy components including Prometheus operator
 alertmanager:
   enabled: false
   
@@ -36,12 +36,20 @@ nodeExporter:
   
 kubeStateMetrics:
   enabled: false
-  
-# Minimal Grafana
+
+# Disable Prometheus completely to avoid operator issues
+prometheus:
+  enabled: false
+    
+# Disable Prometheus Operator completely
+prometheusOperator:
+  enabled: false
+
+# Only enable Grafana with basic configuration
 grafana:
   enabled: true
   image:
-    tag: "9.5.0"  # Use a smaller, stable version
+    tag: "9.5.0"
   resources:
     requests:
       memory: 64Mi
@@ -70,64 +78,25 @@ grafana:
     create: false
   testFramework:
     enabled: false
-
-# Minimal Prometheus
-prometheus:
-  enabled: true
-  prometheusSpec:
-    image:
-      tag: "v2.40.0"  # Use a smaller, stable version
-    resources:
-      requests:
-        memory: 128Mi
-        cpu: 100m
-      limits:
-        memory: 256Mi
-        cpu: 200m
-    retention: 6h  # Very short retention
-    storageSpec: {}  # Use emptyDir instead of PVC
-    serviceMonitorSelectorNilUsesHelmValues: false
-    ruleSelectorNilUsesHelmValues: false
-    podMonitorSelectorNilUsesHelmValues: false
-    
-# Minimal Prometheus Operator
-prometheusOperator:
-  enabled: true
-  admissionWebhooks:
-    enabled: false
-  tls:
-    enabled: false
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 50m
-    limits:
-      memory: 128Mi
-      cpu: 100m
-  # Remove specific image tag to use default compatible version
-  kubeletService:
-    enabled: false  # Disable kubelet service to avoid the flag issue
-  serviceMonitor:
-    selfMonitor: false
+  adminPassword: "admin123"
 EOF
 
 helm install monitor prometheus-community/kube-prometheus-stack \
   --namespace monitoring \
   --values /tmp/minimal-monitoring.yaml \
-  --timeout 10m \
+  --timeout 5m \
   --wait \
   --debug
 
-echo "Waiting for pods to be ready..."
+echo "Waiting for Grafana to be ready..."
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
-kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus-operator -n monitoring --timeout=300s
 
 echo "Patching Grafana service to NodePort..."
 kubectl patch svc monitor-grafana -n monitoring -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30300}]}}'
 
 # Get access info
 EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "localhost")
-GRAFANA_PASSWORD=$(kubectl get secret monitor-grafana -n monitoring -o jsonpath="{.data.admin-password}" 2>/dev/null | base64 --decode 2>/dev/null || echo "admin")
+GRAFANA_PASSWORD="admin123"
 
 echo ""
 echo "🔍 Checking deployment status..."
@@ -135,14 +104,17 @@ kubectl get pods -n monitoring -o wide
 
 if kubectl get pods -n monitoring | grep -q "Running"; then
     echo ""
-    echo "✅ Minimal monitoring stack deployed!"
+    echo "✅ Grafana-only monitoring stack deployed!"
     echo "📊 Grafana: http://$EC2_IP:30300 (admin:$GRAFANA_PASSWORD)"
     echo ""
-    echo "⚠️  Ultra-minimal setup:"
-    echo "  - Only Prometheus + Grafana"
-    echo "  - 6 hour retention"
-    echo "  - No persistent storage"
-    echo "  - Expected usage: ~400Mi memory, ~100Mi disk"
+    echo "⚠️  Grafana-only setup:"
+    echo "  - Only Grafana (no Prometheus operator)"
+    echo "  - No data collection (you'll need to add data sources manually)"
+    echo "  - Expected usage: ~200Mi memory, ~50Mi disk"
+    echo ""
+    echo "💡 To add Prometheus later, you can:"
+    echo "  - Install standalone Prometheus"
+    echo "  - Configure it as a data source in Grafana"
 else
     echo ""
     echo "❌ Some pods are not running properly. Check the status above."
