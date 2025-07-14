@@ -56,6 +56,37 @@ Then access from Windows:
 - **Mongo Express** - Database web UI (port 8081)
 - **Ostad Server** - Express.js API (port 5050)
 - **Ostad UI** - React frontend (port 5173)
+- **Monitoring** - Grafana monitoring stack (see `monitoring/` folder)
+
+## Monitoring
+
+For monitoring deployment, see the `monitoring/` folder:
+
+```bash
+# Deploy lightweight monitoring (recommended for EC2)
+./monitoring/ec2-monitoring-minimal.sh
+
+# Access Grafana
+# Direct: http://EC2_IP:30300 (admin:admin123)
+# Port forwarding: ./ec2-port-forward.sh then http://EC2_IP:3000
+```
+
+For more monitoring options, see `monitoring/README.md`
+
+## EC2 Deployment
+
+For EC2 instances, use the specialized scripts:
+
+```bash
+# Deploy application
+./ec2-deploy.sh
+
+# Deploy monitoring
+./monitoring/ec2-monitoring-minimal.sh
+
+# Port forwarding for external access
+./ec2-port-forward.sh
+```
 
 ## Cleanup
 
