@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Setting up Kubernetes and monitoring on Ubuntu 22.04..."
+echo "🚀 Setting up Kubernetes and monitoring..."
 
 sudo apt-get update -y
 sudo apt-get install -y docker.io apt-transport-https ca-certificates curl
@@ -28,6 +28,7 @@ cat <<EOF | sudo tee /etc/docker/daemon.json
 EOF
 
 sudo systemctl restart docker
+sudo systemctl restart kubelet
 sudo swapoff -a
 sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
@@ -50,9 +51,19 @@ mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
-echo "⏳ Waiting for API server to be ready..."
+sudo systemctl restart kubelet
+sleep 15
+
+RETRIES=0
+MAX_RETRIES=30
 while ! kubectl get nodes >/dev/null 2>&1; do
-    sleep 5
+    RETRIES=$((RETRIES + 1))
+    if [ $RETRIES -gt $MAX_RETRIES ]; then
+        echo "❌ API server failed"
+        sudo journalctl -u kubelet --no-pager --lines=10
+        exit 1
+    fi
+    sleep 10
 done
 
 kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
@@ -60,10 +71,13 @@ kubectl taint nodes --all node-role.kubernetes.io/control-plane-
 
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
-kubectl wait --for=condition=Ready node --all --timeout=300s
+kubectl wait --for=condition=Ready node --all --timeout=600s
 
 if [ $? -ne 0 ]; then
     echo "❌ Node failed to become ready"
+    kubectl get nodes -o wide
+    kubectl get pods -A
+    sudo journalctl -u kubelet --no-pager --lines=20
     exit 1
 fi
 
@@ -74,8 +88,8 @@ kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f 
 helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring
 
 if [ $? -ne 0 ]; then
-    echo "⚠️ Monitoring setup failed, but Kubernetes is ready"
-    echo "✅ Setup complete! Logout and login again, then run deploy-ec2.sh"
+    echo "⚠️ Monitoring failed, but Kubernetes ready"
+    echo "✅ Setup complete! Logout/login, then run deploy-ec2.sh"
     exit 0
 fi
 
@@ -89,5 +103,5 @@ fi
 
 GRAFANA_PASSWORD=$(kubectl get secret monitor-grafana -n monitoring -o jsonpath="{.data.admin-password}" | base64 --decode)
 
-echo "✅ Setup complete! Logout and login again, then run deploy-ec2.sh"
+echo "✅ Setup complete! Logout/login, then run deploy-ec2.sh"
 echo "📊 Monitoring: http://$NODE_IP:30300 (admin:$GRAFANA_PASSWORD)"
