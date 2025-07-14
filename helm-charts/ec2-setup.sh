@@ -85,11 +85,21 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo update
 
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
-helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring
+
+# Install monitoring with reduced resources for EC2
+helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring \
+  --set prometheus.prometheusSpec.resources.requests.memory=512Mi \
+  --set prometheus.prometheusSpec.resources.limits.memory=1Gi \
+  --set grafana.resources.requests.memory=128Mi \
+  --set grafana.resources.limits.memory=256Mi \
+  --set alertmanager.alertmanagerSpec.resources.requests.memory=128Mi \
+  --set alertmanager.alertmanagerSpec.resources.limits.memory=256Mi \
+  --timeout=600s
 
 if [ $? -ne 0 ]; then
     echo "⚠️ Monitoring failed, but Kubernetes ready"
     echo "✅ Setup complete! Logout/login, then run deploy-ec2.sh"
+    echo "💡 To install monitoring later, run: helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring --timeout=600s"
     exit 0
 fi
 
