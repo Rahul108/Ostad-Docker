@@ -9,44 +9,53 @@ pkill -f "kubectl port-forward"
 
 echo "Starting port forwarding for all services..."
 
-# Port forward in background
-kubectl port-forward service/mongo-express 8081:8081 &
-kubectl port-forward service/ostad-server 5050:5050 &
-kubectl port-forward service/ostad-ui 5173:5173 &
+# Port forward in background (bind to all interfaces for external access)
+kubectl port-forward --address 0.0.0.0 service/mongo-express 8081:8081 &
+kubectl port-forward --address 0.0.0.0 service/ostad-server 5050:5050 &
+kubectl port-forward --address 0.0.0.0 service/ostad-ui 5173:5173 &
 
 # Port forward monitoring services (if available)
 if kubectl get namespace monitoring > /dev/null 2>&1; then
     echo "Monitoring namespace detected, forwarding Grafana and Prometheus..."
-    kubectl port-forward service/monitor-grafana 3000:80 -n monitoring &
-    kubectl port-forward service/monitor-kube-prometheus-st-prometheus 9090:9090 -n monitoring &
+    kubectl port-forward --address 0.0.0.0 service/monitor-grafana 3000:80 -n monitoring &
+    kubectl port-forward --address 0.0.0.0 service/monitor-kube-prometheus-st-prometheus 9090:9090 -n monitoring &
 fi
 
 echo ""
-echo "Port forwarding active! Access your services from your local machine at:"
-echo "  - Frontend (Ostad UI): http://localhost:5173"
-echo "  - Mongo Express: http://localhost:8081 (admin:ostad123)"
-echo "  - API Server: http://localhost:5050"
+echo "Port forwarding active! Access your services from your PC browser at:"
+# Get EC2 public IP using IMDSv2, fallback to external service
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600" -s 2>/dev/null)
+if [ -n "$TOKEN" ]; then
+    EC2_IP=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null)
+fi
+# Fallback to external service if metadata service fails
+if [ -z "$EC2_IP" ]; then
+    EC2_IP=$(curl -s https://checkip.amazonaws.com/ 2>/dev/null | tr -d '\n')
+fi
+echo "  - Frontend (Ostad UI): http://$EC2_IP:5173"
+echo "  - Mongo Express: http://$EC2_IP:8081 (admin:ostad123)"
+echo "  - API Server: http://$EC2_IP:5050"
 
 # Show monitoring URLs if available
 if kubectl get namespace monitoring > /dev/null 2>&1; then
-    echo "  - Grafana: http://localhost:3000 (admin:prom-operator)"
-    echo "  - Prometheus: http://localhost:9090"
+    echo "  - Grafana: http://$EC2_IP:3000 (admin:prom-operator)"
+    echo "  - Prometheus: http://$EC2_IP:9090"
 fi
 
-# Show external access URLs
-EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
+# Show minikube direct access URLs
+MINIKUBE_IP=$(minikube ip 2>/dev/null || echo "192.168.49.2")
 echo ""
-echo "Alternative external access (if EC2 security groups allow):"
-echo "  - Frontend (Ostad UI): http://$EC2_IP:30173"
-echo "  - Mongo Express: http://$EC2_IP:30081 (admin:ostad123)"
-echo "  - API Server: http://$EC2_IP:30050"
-echo "  - Grafana: http://$EC2_IP:30300"
+echo "Direct minikube access (from EC2 instance):"
+echo "  - Frontend (Ostad UI): http://$MINIKUBE_IP:30173"
+echo "  - Mongo Express: http://$MINIKUBE_IP:30081 (admin:ostad123)"
+echo "  - API Server: http://$MINIKUBE_IP:30050"
 echo ""
-echo "📋 Security Group Requirements for external access:"
-echo "  - Port 30173 (Ostad UI)"
-echo "  - Port 30081 (Mongo Express)"  
-echo "  - Port 30050 (API Server)"
-echo "  - Port 30300 (Grafana)"
+echo "📋 Security Group Requirements (already configured for all TCP):"
+echo "  - Port 5173 (Ostad UI)"
+echo "  - Port 8081 (Mongo Express)"  
+echo "  - Port 5050 (API Server)"
+echo "  - Port 3000 (Grafana)"
+echo "  - Port 9090 (Prometheus)"
 echo ""
 echo "Press Ctrl+C to stop all port forwarding"
 echo ""
