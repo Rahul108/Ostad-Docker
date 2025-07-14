@@ -6,8 +6,11 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 eval $(minikube docker-env)
+docker system prune -f
 docker build -f helm-charts/Dockerfile-server -t ostad-server:latest .
+docker system prune -f
 docker build -f helm-charts/Dockerfile-ui -t ostad-ui:latest .
+docker system prune -f
 
 cd helm-charts
 
@@ -23,6 +26,8 @@ kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=ostad-ui --
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=mongo-express --timeout=100s
 
 kubectl get pods
+
+docker system prune -f
 
 EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4)
 
