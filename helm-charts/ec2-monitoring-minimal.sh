@@ -17,82 +17,70 @@ kubectl delete namespace monitoring 2>/dev/null || true
 echo "Waiting for cleanup..."
 sleep 15
 
-echo "Adding Prometheus community Helm repository..."
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+echo "Adding Grafana Helm repository..."
+helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
 echo "Creating namespace..."
 kubectl create namespace monitoring
 
 echo "Installing minimal monitoring stack..."
-# Ultra-minimal values for very constrained environments - Grafana only
+# Ultra-minimal Grafana-only deployment using standalone chart
 cat > /tmp/minimal-monitoring.yaml << 'EOF'
-# Disable all heavy components including Prometheus operator
-alertmanager:
-  enabled: false
-  
-nodeExporter:
-  enabled: false
-  
-kubeStateMetrics:
+# Minimal resource allocation for EC2
+resources:
+  requests:
+    memory: 64Mi
+    cpu: 50m
+  limits:
+    memory: 128Mi
+    cpu: 100m
+
+# Disable persistence
+persistence:
   enabled: false
 
-# Disable Prometheus completely to avoid operator issues
-prometheus:
-  enabled: false
-    
-# Disable Prometheus Operator completely
-prometheusOperator:
+# Set admin password
+adminPassword: "admin123"
+
+# Disable unnecessary features
+sidecar:
+  datasources:
+    enabled: false
+  dashboards:
+    enabled: false
+
+# Minimal RBAC
+rbac:
+  create: false
+  pspEnabled: false
+
+serviceAccount:
+  create: false
+
+# Disable test framework
+testFramework:
   enabled: false
 
-# Only enable Grafana with basic configuration
-grafana:
-  enabled: true
-  image:
-    tag: "9.5.0"
-  resources:
-    requests:
-      memory: 64Mi
-      cpu: 50m
-    limits:
-      memory: 128Mi
-      cpu: 100m
-  persistence:
-    enabled: false
-  sidecar:
-    datasources:
-      enabled: false
-    dashboards:
-      enabled: false
-    resources:
-      requests:
-        memory: 32Mi
-        cpu: 25m
-      limits:
-        memory: 64Mi
-        cpu: 50m
-  rbac:
-    create: false
-    pspEnabled: false
-  serviceAccount:
-    create: false
-  testFramework:
-    enabled: false
-  adminPassword: "admin123"
+# Use NodePort service
+service:
+  type: NodePort
+  nodePort: 30300
+  port: 80
+
+# Disable ingress
+ingress:
+  enabled: false
 EOF
 
-helm install monitor prometheus-community/kube-prometheus-stack \
+helm install monitor grafana/grafana \
   --namespace monitoring \
   --values /tmp/minimal-monitoring.yaml \
   --timeout 5m \
-  --wait \
-  --debug
+  --wait
 
 echo "Waiting for Grafana to be ready..."
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
-
-echo "Patching Grafana service to NodePort..."
-kubectl patch svc monitor-grafana -n monitoring -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30300}]}}'
 
 # Get access info
 EC2_IP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 2>/dev/null || echo "localhost")
@@ -104,13 +92,13 @@ kubectl get pods -n monitoring -o wide
 
 if kubectl get pods -n monitoring | grep -q "Running"; then
     echo ""
-    echo "✅ Grafana-only monitoring stack deployed!"
+    echo "✅ Standalone Grafana deployed successfully!"
     echo "📊 Grafana: http://$EC2_IP:30300 (admin:$GRAFANA_PASSWORD)"
     echo ""
-    echo "⚠️  Grafana-only setup:"
-    echo "  - Only Grafana (no Prometheus operator)"
+    echo "⚠️  Standalone Grafana setup:"
+    echo "  - Only Grafana (no monitoring stack overhead)"
     echo "  - No data collection (you'll need to add data sources manually)"
-    echo "  - Expected usage: ~200Mi memory, ~50Mi disk"
+    echo "  - Expected usage: ~100Mi memory, ~20Mi disk"
     echo ""
     echo "💡 To add Prometheus later, you can:"
     echo "  - Install standalone Prometheus"
