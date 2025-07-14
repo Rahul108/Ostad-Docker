@@ -41,8 +41,8 @@ sudo apt-get update -y
 sudo apt-get install -y apt-transport-https ca-certificates curl gnupg lsb-release
 
 # Install Docker with better error handling
-echo "🐳 Installing Docker..."
-sudo apt-get install -y docker.io
+echo "🐳 Installing Docker and containerd..."
+sudo apt-get install -y docker.io containerd
 
 # Check if Docker installation was successful
 if ! command -v docker &> /dev/null; then
@@ -50,6 +50,28 @@ if ! command -v docker &> /dev/null; then
     curl -fsSL https://get.docker.com -o get-docker.sh
     sudo sh get-docker.sh
     rm get-docker.sh
+fi
+
+# Configure containerd properly first
+echo "⚙️ Configuring containerd..."
+sudo mkdir -p /etc/containerd
+sudo containerd config default | sudo tee /etc/containerd/config.toml
+
+# Enable systemd cgroup driver in containerd
+sudo sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
+
+# Start containerd first
+sudo systemctl enable containerd
+sudo systemctl start containerd
+
+# Wait for containerd to be ready
+sleep 5
+
+# Check if containerd is running
+if ! sudo systemctl is-active --quiet containerd; then
+    echo "❌ containerd failed to start"
+    sudo systemctl status containerd
+    exit 1
 fi
 
 # Configure Docker daemon before starting
@@ -183,6 +205,7 @@ nodeRegistration:
     - NumCPU
     - Mem
     - SystemVerification
+    - ImagePull
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
