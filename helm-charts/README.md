@@ -5,12 +5,44 @@ Deploy the Ostad application stack (MongoDB, Express API, React UI) on Kubernete
 ## Prerequisites
 
 - Docker
-- Minikube or Kubernetes cluster
+- Kubernetes cluster (Minikube or kubeadm)
 - kubectl configured
 
-## Quick Start
+## Deployment Options
 
-### 1. Deploy Everything
+### Option 1: AWS EC2 with kubeadm (Recommended for Production)
+
+**1. Setup EC2 Instance:**
+- Launch Ubuntu 22.04 EC2 instance (t3.medium or larger)
+- Configure security group (see EC2-SETUP.md)
+- SSH into your instance
+
+**2. Setup Kubernetes:**
+```bash
+cd helm-charts
+./ec2-setup.sh
+```
+
+**3. Deploy Application:**
+```bash
+./deploy-ec2.sh
+```
+
+**4. Access Application:**
+- Get your EC2 public IP from AWS console
+- Frontend: `http://<ec2-public-ip>:30173`
+- Mongo Express: `http://<ec2-public-ip>:30081` (admin/ostad123)
+- API Server: `http://<ec2-public-ip>:30050`
+
+**Alternative: Port Forwarding (for development):**
+```bash
+./port-forward-ec2.sh
+```
+Then access via localhost URLs.
+
+### Option 2: Local Development with Minikube
+
+**1. Deploy Everything:**
 
 ```bash
 cd helm-charts
@@ -22,7 +54,7 @@ This script will:
 - Install all Helm charts
 - Show you access URLs
 
-### 2. Access Your Application
+**2. Access Your Application:**
 
 **For WSL2 Users (Windows):**
 
