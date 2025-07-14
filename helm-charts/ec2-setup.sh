@@ -66,12 +66,6 @@ cat <<EOF | sudo tee /etc/docker/daemon.json
   "storage-opts": [
     "overlay2.override_kernel_check=true"
   ],
-  "default-runtime": "runc",
-  "runtimes": {
-    "runc": {
-      "path": "runc"
-    }
-  },
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 3
 }
@@ -86,12 +80,40 @@ sudo systemctl start docker
 if ! sudo systemctl is-active --quiet docker; then
     echo "❌ Docker failed to start. Checking logs..."
     sudo journalctl -u docker --no-pager --lines=10
-    echo "🔄 Attempting to restart Docker..."
+    echo "🔄 Attempting to fix Docker configuration..."
+    
+    # Try with minimal Docker configuration
+    cat <<EOF | sudo tee /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "50m"
+  },
+  "storage-driver": "overlay2"
+}
+EOF
+    
+    sudo systemctl daemon-reload
     sudo systemctl restart docker
     sleep 5
+    
     if ! sudo systemctl is-active --quiet docker; then
-        echo "❌ Docker startup failed. Exiting..."
-        exit 1
+        echo "❌ Docker startup failed with minimal config. Trying without daemon.json..."
+        sudo rm -f /etc/docker/daemon.json
+        sudo systemctl restart docker
+        sleep 5
+        
+        if ! sudo systemctl is-active --quiet docker; then
+            echo "❌ Docker startup failed completely. Exiting..."
+            echo "🔍 Debug info:"
+            sudo systemctl status docker
+            exit 1
+        else
+            echo "✅ Docker started without daemon.json"
+        fi
+    else
+        echo "✅ Docker started with minimal config"
     fi
 fi
 

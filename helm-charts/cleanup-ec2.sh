@@ -31,6 +31,12 @@ sudo rm -rf /var/lib/docker
 sudo rm -rf /etc/docker
 sudo rm -rf /var/lib/containerd
 sudo rm -rf /etc/containerd
+sudo rm -rf /var/run/docker.sock
+sudo rm -rf /var/run/docker
+
+# Clean up any Docker-related systemd override files
+sudo rm -rf /etc/systemd/system/docker.service.d
+sudo rm -rf /etc/systemd/system/containerd.service.d
 
 # Clean up Kubernetes files
 echo "🗑️ Cleaning up Kubernetes files..."
