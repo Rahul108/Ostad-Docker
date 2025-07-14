@@ -46,13 +46,17 @@ echo "Starting Docker service..."
 sudo systemctl start docker
 sudo systemctl enable docker
 
-# Start minikube
+# Apply Docker group changes and start minikube
 echo "Starting minikube..."
+newgrp docker << EOF
 minikube start --driver=docker --memory=4096 --cpus=2
+EOF
 
 # Enable minikube addons
 echo "Enabling minikube addons..."
+newgrp docker << EOF
 minikube addons enable ingress
+EOF
 
 echo "✅ EC2 setup completed!"
 echo ""
@@ -65,8 +69,9 @@ echo "  Node.js: $(node --version)"
 echo "  npm: $(npm --version)"
 echo ""
 echo "🔧 Next steps:"
-echo "  1. Log out and log back in to apply Docker group changes"
 echo "  2. Run ./ec2-deploy.sh to deploy your application"
 echo ""
 echo "💡 Minikube status:"
+newgrp docker << EOF
 minikube status
+EOF
