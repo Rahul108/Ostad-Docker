@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Update system
-sudo apt update && sudo apt upgrade -y
+sudo apt update
 
 # Install Docker
 sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
@@ -25,13 +25,17 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.
 sudo apt update
 sudo apt install -y helm
 
+# Clean up
+sudo apt clean
+sudo apt autoremove -y
+
 # Start Docker service
 sudo systemctl start docker
 sudo systemctl enable docker
 
 # Apply Docker group changes and start minikube
 newgrp docker << EOF
-minikube start --driver=docker --memory=3072 --cpus=2
+minikube start --driver=docker --memory=2048 --cpus=2
 minikube addons enable ingress
 EOF
 
