@@ -81,17 +81,31 @@ systemReserved:
 kubeReserved:
   cpu: "100m"
   memory: "256Mi"
+cgroupDriver: systemd
+clusterDNS:
+  - "10.96.0.10"
+clusterDomain: "cluster.local"
 EOF
 
-sudo kubeadm init --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=NumCPU,Mem --config=/dev/stdin <<EOF
+# Get the primary IP address more reliably
+PRIMARY_IP=$(ip route get 8.8.8.8 | awk '{print $7; exit}')
+if [ -z "$PRIMARY_IP" ]; then
+    PRIMARY_IP=$(hostname -I | awk '{print $1}')
+fi
+
+cat <<EOF | sudo tee /etc/kubernetes/kubeadm-config.yaml
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: InitConfiguration
 localAPIEndpoint:
-  advertiseAddress: $(hostname -I | awk '{print $1}')
+  advertiseAddress: $PRIMARY_IP
   bindPort: 6443
 nodeRegistration:
   kubeletExtraArgs:
     config: /etc/kubernetes/kubelet-config.yaml
+  ignorePreflightErrors:
+    - NumCPU
+    - Mem
+    - SystemVerification
 ---
 apiVersion: kubeadm.k8s.io/v1beta3
 kind: ClusterConfiguration
@@ -111,13 +125,24 @@ etcd:
     serverCertSANs:
     - "localhost"
     - "127.0.0.1"
+    - "$PRIMARY_IP"
     peerCertSANs:
     - "localhost"
     - "127.0.0.1"
+    - "$PRIMARY_IP"
 EOF
+
+sudo kubeadm init --config=/etc/kubernetes/kubeadm-config.yaml --v=5
 
 if [ $? -ne 0 ]; then
     echo "❌ kubeadm init failed"
+    echo "🔍 Checking system resources..."
+    free -h
+    df -h
+    echo "🔍 Checking Docker status..."
+    sudo systemctl status docker
+    echo "🔍 Checking kubelet logs..."
+    sudo journalctl -u kubelet --no-pager --lines=20
     exit 1
 fi
 
@@ -160,30 +185,75 @@ helm repo update
 
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 
+# Verify cluster is healthy before installing monitoring
+echo "🔍 Verifying cluster health..."
+kubectl get nodes -o wide
+kubectl get pods -A
+free -h
+df -h
+
+# Check if we have enough resources for monitoring
+AVAILABLE_MEMORY=$(free -m | awk 'NR==2{printf "%.0f", $7}')
+if [ "$AVAILABLE_MEMORY" -lt 1000 ]; then
+    echo "⚠️ Low memory detected ($AVAILABLE_MEMORY MB available). Installing minimal monitoring..."
+    MONITORING_PROFILE="minimal"
+else
+    echo "✅ Sufficient memory available ($AVAILABLE_MEMORY MB). Installing standard monitoring..."
+    MONITORING_PROFILE="standard"
+fi
+
 # Install monitoring with very minimal resources for t3.medium (4GB RAM)
-helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring \
-  --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
-  --set prometheus.prometheusSpec.resources.limits.memory=512Mi \
-  --set prometheus.prometheusSpec.resources.requests.cpu=100m \
-  --set prometheus.prometheusSpec.resources.limits.cpu=200m \
-  --set grafana.resources.requests.memory=64Mi \
-  --set grafana.resources.limits.memory=128Mi \
-  --set grafana.resources.requests.cpu=50m \
-  --set grafana.resources.limits.cpu=100m \
-  --set alertmanager.alertmanagerSpec.resources.requests.memory=64Mi \
-  --set alertmanager.alertmanagerSpec.resources.limits.memory=128Mi \
-  --set alertmanager.alertmanagerSpec.resources.requests.cpu=50m \
-  --set alertmanager.alertmanagerSpec.resources.limits.cpu=100m \
-  --set prometheus.prometheusSpec.retention=6h \
-  --set prometheus.prometheusSpec.retentionSize=1GB \
-  --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=2Gi \
-  --set nodeExporter.resources.requests.memory=32Mi \
-  --set nodeExporter.resources.limits.memory=64Mi \
-  --set kubeStateMetrics.resources.requests.memory=32Mi \
-  --set kubeStateMetrics.resources.limits.memory=64Mi \
-  --set prometheusOperator.resources.requests.memory=64Mi \
-  --set prometheusOperator.resources.limits.memory=128Mi \
-  --timeout=900s
+if [ "$MONITORING_PROFILE" = "minimal" ]; then
+    echo "🔧 Installing minimal monitoring stack..."
+    helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring \
+      --set prometheus.prometheusSpec.resources.requests.memory=128Mi \
+      --set prometheus.prometheusSpec.resources.limits.memory=256Mi \
+      --set prometheus.prometheusSpec.resources.requests.cpu=50m \
+      --set prometheus.prometheusSpec.resources.limits.cpu=100m \
+      --set grafana.resources.requests.memory=32Mi \
+      --set grafana.resources.limits.memory=64Mi \
+      --set grafana.resources.requests.cpu=25m \
+      --set grafana.resources.limits.cpu=50m \
+      --set alertmanager.alertmanagerSpec.resources.requests.memory=32Mi \
+      --set alertmanager.alertmanagerSpec.resources.limits.memory=64Mi \
+      --set alertmanager.alertmanagerSpec.resources.requests.cpu=25m \
+      --set alertmanager.alertmanagerSpec.resources.limits.cpu=50m \
+      --set prometheus.prometheusSpec.retention=3h \
+      --set prometheus.prometheusSpec.retentionSize=500MB \
+      --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=1Gi \
+      --set nodeExporter.resources.requests.memory=16Mi \
+      --set nodeExporter.resources.limits.memory=32Mi \
+      --set kubeStateMetrics.resources.requests.memory=16Mi \
+      --set kubeStateMetrics.resources.limits.memory=32Mi \
+      --set prometheusOperator.resources.requests.memory=32Mi \
+      --set prometheusOperator.resources.limits.memory=64Mi \
+      --timeout=900s
+else
+    echo "🔧 Installing standard monitoring stack..."
+    helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring \
+      --set prometheus.prometheusSpec.resources.requests.memory=256Mi \
+      --set prometheus.prometheusSpec.resources.limits.memory=512Mi \
+      --set prometheus.prometheusSpec.resources.requests.cpu=100m \
+      --set prometheus.prometheusSpec.resources.limits.cpu=200m \
+      --set grafana.resources.requests.memory=64Mi \
+      --set grafana.resources.limits.memory=128Mi \
+      --set grafana.resources.requests.cpu=50m \
+      --set grafana.resources.limits.cpu=100m \
+      --set alertmanager.alertmanagerSpec.resources.requests.memory=64Mi \
+      --set alertmanager.alertmanagerSpec.resources.limits.memory=128Mi \
+      --set alertmanager.alertmanagerSpec.resources.requests.cpu=50m \
+      --set alertmanager.alertmanagerSpec.resources.limits.cpu=100m \
+      --set prometheus.prometheusSpec.retention=6h \
+      --set prometheus.prometheusSpec.retentionSize=1GB \
+      --set prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage=2Gi \
+      --set nodeExporter.resources.requests.memory=32Mi \
+      --set nodeExporter.resources.limits.memory=64Mi \
+      --set kubeStateMetrics.resources.requests.memory=32Mi \
+      --set kubeStateMetrics.resources.limits.memory=64Mi \
+      --set prometheusOperator.resources.requests.memory=64Mi \
+      --set prometheusOperator.resources.limits.memory=128Mi \
+      --timeout=900s
+fi
 
 if [ $? -ne 0 ]; then
     echo "⚠️ Monitoring failed, but Kubernetes ready"
@@ -210,6 +280,13 @@ sudo systemctl restart kubelet
 # Enable memory compaction
 echo 1 | sudo tee /proc/sys/vm/compact_memory
 
+# Final verification
+echo "🔍 Final cluster verification..."
+kubectl get nodes -o wide
+kubectl get pods -A --field-selector=status.phase!=Running,status.phase!=Succeeded 2>/dev/null || true
+kubectl top nodes 2>/dev/null || echo "⚠️ Metrics not ready yet"
+
 echo "✅ Setup complete! Logout/login, then run deploy-ec2.sh"
 echo "📊 Monitoring: http://$NODE_IP:30300 (admin:$GRAFANA_PASSWORD)"
 echo "💡 For t3.medium optimized setup - Monitor resource usage with 'kubectl top nodes' and 'kubectl top pods -A'"
+echo "🎯 Memory profile used: $MONITORING_PROFILE"
