@@ -41,9 +41,19 @@ sudo sysctl --system
 
 sudo kubeadm init --pod-network-cidr=10.244.0.0/16
 
+if [ $? -ne 0 ]; then
+    echo "❌ kubeadm init failed"
+    exit 1
+fi
+
 mkdir -p $HOME/.kube
 sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+echo "⏳ Waiting for API server to be ready..."
+while ! kubectl get nodes >/dev/null 2>&1; do
+    sleep 5
+done
 
 kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
 kubectl taint nodes --all node-role.kubernetes.io/control-plane-
@@ -52,11 +62,22 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 kubectl wait --for=condition=Ready node --all --timeout=300s
 
+if [ $? -ne 0 ]; then
+    echo "❌ Node failed to become ready"
+    exit 1
+fi
+
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 
 kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
 helm install monitor prometheus-community/kube-prometheus-stack --namespace monitoring
+
+if [ $? -ne 0 ]; then
+    echo "⚠️ Monitoring setup failed, but Kubernetes is ready"
+    echo "✅ Setup complete! Logout and login again, then run deploy-ec2.sh"
+    exit 0
+fi
 
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=grafana -n monitoring --timeout=300s
 kubectl patch svc monitor-grafana -n monitoring -p '{"spec":{"type":"NodePort","ports":[{"port":80,"nodePort":30300}]}}'
