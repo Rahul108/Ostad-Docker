@@ -63,9 +63,6 @@ cat <<EOF | sudo tee /etc/docker/daemon.json
     "max-file": "3"
   },
   "storage-driver": "overlay2",
-  "storage-opts": [
-    "overlay2.override_kernel_check=true"
-  ],
   "max-concurrent-downloads": 3,
   "max-concurrent-uploads": 3
 }
